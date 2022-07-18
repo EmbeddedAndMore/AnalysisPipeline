@@ -41,9 +41,9 @@ CeleryApp = Celery(
     result_serializer="NumpySerializer",
 )
 
-
-CeleryApp.conf.update(
-    imports=[
-        "app.cum_sum_pipeline.cum_sum_pipeline",
-    ]
-)
+# set the priority from 0-9, 0 being the highest priority.
+# Note: While the Celery Redis transport does honor the priority field, Redis itself has no notion of priorities.
+CeleryApp.conf.broker_transport_options = {
+    "priority_steps": list(range(10)),
+    "queue_order_strategy": "priority",
+}

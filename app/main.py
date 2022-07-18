@@ -1,12 +1,5 @@
 from __future__ import annotations
-import celer as celer
-from celery import Celery
 
-# import asyncio
-import sys
-
-# from asyncio import Task
-from .analysis_base.base import PipelineStage
 from .cum_sum_pipeline.cum_sum_pipeline import *
 
 
@@ -16,21 +9,31 @@ from .cum_sum_pipeline.cum_sum_pipeline import *
 
 
 def main():
-    pipeline1, pipeline2 = CumSumPipeline({"name": "pipeline_1"}), CumSumPipeline({"name": "pipeline_2"})
 
-    task1: PipelineStage | None = None
-    task2: PipelineStage | None = None
+    pipelines = []
+
+    for i in range(10):
+
+        if i == 5:
+            pipelines.append(CumSumPipeline({"name": f"pipeline_{i}", "priority": i}))
+        else:
+            pipelines.append(CumSumPipeline({"name": f"pipeline_{i}", "priority": 0}))
+
+    task_results = [None for _ in range(10)]
     try:
         cnt = 1
         while True:
 
-            task1 = pipeline1.execute()
-            task2 = pipeline2.execute()
+            for i, pl in enumerate(pipelines):
+                task_results[i] = pl.execute()
 
             print(f"main loop running {cnt}")
-            if task1 and task2:
-                print("loop finished.")
+            if all(task_results):
+                print("all tasks finished")
                 break
+            for i, result in enumerate(task_results):
+                if result:
+                    print(f"task {i} finished")
 
             cnt += 1
             sleep(0.5)
@@ -46,6 +49,3 @@ if __name__ == "__main__":
         # loop.run_until_complete(main(loop))
     except KeyboardInterrupt:
         print("Received exit, exiting")
-
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/

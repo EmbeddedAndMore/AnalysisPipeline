@@ -2,7 +2,7 @@ from __future__ import annotations
 from time import sleep
 from celery import Task
 from celery.result import AsyncResult
-from ..celery_app import CeleryApp
+from ..celery_app import CeleryApp, serializer_name
 from ..analysis_base.base import *
 
 
@@ -58,6 +58,7 @@ class CumSumPipeline(BasePipeline):
         self.data_loader = cum_sum_loader
         self.processor = cum_sum_processor
         self.config = config
+        self.priority = config["priority"]
         self.current_state = PipelineStage.PENDING
         self.loader_result: AsyncResult | None = None
         self.processor_result: AsyncResult | None = None
@@ -71,13 +72,15 @@ class CumSumPipeline(BasePipeline):
         if self.current_state == PipelineStage.PENDING:
             print(f"{self.config['name']} started.")
             self.current_state = PipelineStage.PROVIDE_DATA
-            self.loader_result = self.data_loader.delay()
+            self.loader_result = self.data_loader.apply_async(serializer=serializer_name, priority=self.priority)
 
         elif (
             self.loader_result and self.loader_result.successful() and self.current_state == PipelineStage.PROVIDE_DATA
         ):
             self.current_state = PipelineStage.PROCESS
-            self.processor_result = self.processor.delay(data=self.loader_result.get())
+            self.processor_result = self.processor.apply_async(
+                (self.loader_result.get(),), serializer=serializer_name, priority=self.priority
+            )
 
         elif (
             self.processor_result and self.processor_result.successful() and self.current_state == PipelineStage.PROCESS
