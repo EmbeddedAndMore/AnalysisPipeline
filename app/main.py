@@ -11,15 +11,16 @@ from .cum_sum_pipeline.cum_sum_pipeline import *
 def main():
 
     pipelines = []
-
-    for i in range(10):
-
-        if i == 5:
+    cnt = 12
+    for i in range(cnt):
+        if i == 0:
+            pipelines.append(CumSumPipeline({"name": f"pipeline_{i}", "priority": i, "delay": 5}))
+        elif i == 5:
             pipelines.append(CumSumPipeline({"name": f"pipeline_{i}", "priority": i}))
         else:
             pipelines.append(CumSumPipeline({"name": f"pipeline_{i}", "priority": 0}))
 
-    task_results = [None for _ in range(10)]
+    task_results = [None for _ in range(cnt)]
     try:
         cnt = 1
         while True:

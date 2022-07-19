@@ -1,5 +1,6 @@
 from __future__ import annotations
 from time import sleep
+from datetime import datetime, timedelta
 from celery import Task
 from celery.result import AsyncResult
 from ..celery_app import CeleryApp, serializer_name
@@ -59,6 +60,9 @@ class CumSumPipeline(BasePipeline):
         self.processor = cum_sum_processor
         self.config = config
         self.priority = config["priority"]
+        self.delay = None
+        if "delay" in config:
+            self.delay = config["delay"]
         self.current_state = PipelineStage.PENDING
         self.loader_result: AsyncResult | None = None
         self.processor_result: AsyncResult | None = None
@@ -72,7 +76,13 @@ class CumSumPipeline(BasePipeline):
         if self.current_state == PipelineStage.PENDING:
             print(f"{self.config['name']} started.")
             self.current_state = PipelineStage.PROVIDE_DATA
-            self.loader_result = self.data_loader.apply_async(serializer=serializer_name, priority=self.priority)
+            if self.delay:
+                five_secs = datetime.utcnow() + timedelta(seconds=self.delay)
+                self.loader_result = self.data_loader.apply_async(
+                    serializer=serializer_name, priority=self.priority, eta=five_secs
+                )
+            else:
+                self.loader_result = self.data_loader.apply_async(serializer=serializer_name, priority=self.priority)
 
         elif (
             self.loader_result and self.loader_result.successful() and self.current_state == PipelineStage.PROVIDE_DATA
@@ -88,7 +98,7 @@ class CumSumPipeline(BasePipeline):
             self.current_state = PipelineStage.FINALIZE
             self.current_state = PipelineStage.FINISHED
 
-            print("result: ", self.processor_result.get()[:2])
+            # print("result: ", self.processor_result.get()[:2])
             print(f"{self.config['name']} finished.")
 
         return self.finished
